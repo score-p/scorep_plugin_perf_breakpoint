@@ -26,7 +26,7 @@ To compile this plugin, you need:
 2. Invoke CMake
 
     If cmake does not find Score-P, resp. VampirTrace, specify the directory if it is not in the
-    default path with `-DSCOREP_DIR=<PATH>`, resp. `-DVT_INC=<path>`.
+    default path with `-DSCOREP_DIR=<PATH>`, resp. `-DVT_INC=<PATH>`.
 
     The plugin will use alternatively the environment variables `SCOREP_DIR` and `VT_DIR`.
 
@@ -36,7 +36,7 @@ To compile this plugin, you need:
 
         make
 
-    The resulting files will be named libbp.so (Score-P) and libbpVt.so (VampirTrace).
+    The resulting files will be named `libbp.so` (Score-P) and `libbpVt.so` (VampirTrace).
 
 4. Copy it to a location listed in `LD_LIBRARY_PATH` or add current path to `LD_LIBRARY_PATH` with
 
