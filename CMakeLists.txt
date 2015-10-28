@@ -31,7 +31,7 @@ if(SCOREP_FOUND)
         message(STATUS "including ${dir}")
     	include_directories(bp ${dir})
     endforeach(dir)
-    target_link_libraries(bp pthread m)
+    target_link_libraries(bp bfd dl)
 endif()
 
 if(NOT SCOREP_FOUND AND NOT VT_FOUND)

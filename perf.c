@@ -56,36 +56,43 @@ void build_perf_attr(struct perf_event_attr * attr, const char * complex_name) {
     // encoding is <action>_<name>
     // <action> can be r, rw, w, and x
     attr->type    = PERF_TYPE_MAX;
-    char *action,*name;
-    action = strtok((char*)complex_name,"_");
-    name = strtok(NULL,"\0");
+    attr->size =sizeof(struct perf_event_attr);
+    const char *action;
+    char *name;
+    action = complex_name;
+    name = strstr(complex_name,"_");
+
+    if (name==NULL) return;
+
+    // move to after first '_'
+    name++;
 
     // set attr->bp_type = action (e.g., HW_BREAKPOINT_R);
     switch(action[0]) {
     case 'r':
         switch(action[1]) {
         case 'w':
-            attr->bp_type = HW_BREAKPOINT_RW;
+            attr->bp_type = HW_BREAKPOINT_RW; break;
         default:
-            attr->bp_type = HW_BREAKPOINT_R;
+            attr->bp_type = HW_BREAKPOINT_R; break;
         }
     case 'w':
-        attr->bp_type = HW_BREAKPOINT_W;
+        attr->bp_type = HW_BREAKPOINT_W; break;
     case 'x':
-        attr->bp_type = HW_BREAKPOINT_X;
+        attr->bp_type = HW_BREAKPOINT_X; break;
     case ' ':
-        attr->bp_type = HW_BREAKPOINT_EMPTY;
+        attr->bp_type = HW_BREAKPOINT_EMPTY; break;
     default:
-        attr->bp_type = HW_BREAKPOINT_INVALID;
+        return;
     }
 
-
     //try to find variable via dlsym */
-    address = dlsym("RTLD_DEFAULT", name);
+    address = dlsym(RTLD_DEFAULT, name);
     if (address != NULL) {
         attr->type = PERF_TYPE_BREAKPOINT;
         attr->bp_addr = (uint64_t)address;
         attr->bp_len = HW_BREAKPOINT_LEN_8;
+        // printf("found in dlsym %s %x\n",name,attr->bp_addr);
 
         //if type is known:
         //           sizeof(type), HW_BREAKPOINT_LEN_8;
@@ -108,30 +115,36 @@ void build_perf_attr(struct perf_event_attr * attr, const char * complex_name) {
         for (i=0; i<number; i++) {
             if (strstr(table[i]->name,name)!=0) {
                 attr->type = PERF_TYPE_BREAKPOINT;
-                attr->bp_addr = (uint64_t)bfd_asymbol_base(table[i]);
+                attr->bp_addr = (uint64_t)bfd_asymbol_base(table[i])+table[i]->value;
                 attr->bp_len = HW_BREAKPOINT_LEN_8;
+               // printf("found in tab %s %x\n",name,attr->bp_addr);
             }
         }
         free(table);
+        if (attr->type == PERF_TYPE_BREAKPOINT)
+        {
+          bfd_close(bfd_variable); 
+          return;
+        }
         storage_needed = bfd_get_dynamic_symtab_upper_bound(bfd_variable);
         table= malloc(storage_needed);
         number = bfd_canonicalize_dynamic_symtab(bfd_variable,table);
         for (i=0; i<number; i++) {
             if (strstr(table[i]->name,name)!=0) {
                 attr->type = PERF_TYPE_BREAKPOINT;
-                attr->bp_addr = (uint64_t)bfd_asymbol_base(table[i]);
+                attr->bp_addr = (uint64_t)bfd_asymbol_base(table[i])+table[i]->value;
                 attr->bp_len = HW_BREAKPOINT_LEN_8;
+               // printf("found in dyn %s %x\n",name,attr->bp_addr);
             }
         }
         bfd_close(bfd_variable);
         free(table);
-        attr->type = PERF_TYPE_BREAKPOINT;
         // if still not found dont change attr
     }
 }
 /* registers perf event */
 int32_t add_counter(char * event_name) {
-    int fd;
+    int fd=-1;
     struct perf_event_attr attr;
 
     build_perf_attr(&attr, event_name);
@@ -140,7 +153,10 @@ int32_t add_counter(char * event_name) {
         fprintf(stderr, "PERF metric not recognized: %s", event_name );
         return -1;
     }
-    fd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, 0);
+    while ( (fd <= 0 ) && ( attr.bp_len > 0 ) ){
+      fd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, 0);
+      attr.bp_len = attr.bp_len >> 1;
+    }
     if (fd<=0) {
         fprintf(stderr, "Unable to open counter \"%s\". Aborting.\n",event_name);
         return -1;
@@ -153,7 +169,9 @@ uint64_t get_value(int fd) {
     uint64_t count=0;
     size_t res=read(fd, &count, sizeof(uint64_t));
     if (res!=sizeof(uint64_t))
+    {
         return !0;
+    }
     return count;
 }
 
@@ -177,7 +195,7 @@ vt_plugin_cntr_metric_info * get_event_info(char * event_name) {
     }
     return_values[0].name=strdup(event_name);
     return_values[0].unit=NULL;
-    return_values[0].cntr_property=VT_PLUGIN_CNTR_LAST|VT_PLUGIN_CNTR_START|
+    return_values[0].cntr_property=VT_PLUGIN_CNTR_ABS|
                                    VT_PLUGIN_CNTR_UNSIGNED;
     return_values[1].name=NULL;
     return return_values;
@@ -222,7 +240,7 @@ SCOREP_Metric_Plugin_MetricProperties * get_event_info(char * event_name)
     return_values[0].name        = strdup(event_name);
     return_values[0].unit        = NULL;
     return_values[0].description = NULL;
-    return_values[0].mode        = SCOREP_METRIC_MODE_ACCUMULATED_START;
+    return_values[0].mode        = SCOREP_METRIC_MODE_ABSOLUTE_LAST;
     return_values[0].value_type  = SCOREP_METRIC_VALUE_UINT64;
     return_values[0].base        = SCOREP_METRIC_BASE_DECIMAL;
     return_values[0].exponent    = 0;
@@ -239,7 +257,7 @@ bool get_optional_value( int32_t   id,
 /**
  * This function get called to give some informations about the plugin to scorep
  */
-SCOREP_METRIC_PLUGIN_ENTRY( PerfScoreP )
+SCOREP_METRIC_PLUGIN_ENTRY( bp )
 {
     /* Initialize info data (with zero) */
     SCOREP_Metric_Plugin_Info info;
