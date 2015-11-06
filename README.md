@@ -62,7 +62,7 @@ write, `rw` to read and write, and `x` to execute.
 E.g. for the ScoreP plugin:
 
     export SCOREP_METRIC_PLUGINS="perfbreakpoint_plugin"
-    export SCOREP_PERFBREAKPOINT_PLUGIN="x_Gomp_Init"
+    export SCOREP_METRIC_PERFBREAKPOINT_PLUGIN="x_Gomp_Init"
 
 or for the VampirTrace plugin:
 
