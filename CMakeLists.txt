@@ -1,39 +1,47 @@
 cmake_minimum_required(VERSION 2.8)
-project(bp)
+project(perfbreakpoint_plugin)
 
-#set(CMAKE_C_COMPILER clang)
-#plugin source files
+option(BACKEND_SCOREP "Build plugin using scorep(ON) or vampirtrace(OFF)" ON)
+
+set(SCOREP_FOUND false)
+
 set(PLUGIN_SOURCE perf.c)
+
+
+if(BACKEND_SCOREP)
+    include(common/FindScorep.cmake)
+    if(SCOREP_FOUND)
+        include_directories(${SCOREP_INCLUDE_DIRS})
+        add_definitions("-DSCOREP")
+    else()
+        message("Score-P was not found, falling back to VampirTrace!")
+    endif()
+endif()
+
+
+if(NOT SCOREP_FOUND OR NOT BACKEND_SCOREP)
+    include(common/FindVampirTrace.cmake)
+    if(VT_FOUND)
+        include_directories(${VT_INCLUDE_DIRS})
+        add_definitions("-DVT")
+    else()
+        message(SEND_ERROR "Found neither Score-P nor VampirTrace backend!")
+    endif()
+endif()
+
 
 #additional c flags
 set(CMAKE_C_FLAGS "-D_GNU_SOURCE -std=c11")
-
 #debugging c flags
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DHAVE_DEBUG -O0 -Wstrict-prototypes -Wall -Wundef -Wno-long-long -Wsign-compare -Wcomment -pedantic -finline-functions -fno-strict-aliasing")
+#release c flags
 set(CMAKE_C_FLAGS_RELEASE "-Os")
 
-include(common/FindVampirTrace.cmake)
-if(VT_FOUND)
-    add_library(bpVT SHARED ${PLUGIN_SOURCE})
-    set_target_properties(bpVT PROPERTIES COMPILE_DEFINITIONS VT)
-    foreach(dir ${VT_INCLUDE_DIRS})
-        message(STATUS "including ${dir}")
-    	include_directories(bpVT ${dir})
-    endforeach(dir)
-    target_link_libraries(bpVT pthread m)
-endif()
-
-include(common/FindScorep.cmake)
+add_library(${PROJECT_NAME} SHARED ${PLUGIN_SOURCE})
 if(SCOREP_FOUND)
-    add_library(bp SHARED ${PLUGIN_SOURCE})
-    set_target_properties(bp PROPERTIES COMPILE_DEFINITIONS SCOREP)
-    foreach(dir ${SCOREP_INCLUDE_DIRS})
-        message(STATUS "including ${dir}")
-    	include_directories(bp ${dir})
-    endforeach(dir)
-    target_link_libraries(bp bfd dl)
+    target_link_libraries(${PROJECT_NAME} bfd dl)
+else()
+    target_link_libraries(${PROJECT_NAME} pthread m)
 endif()
 
-if(NOT SCOREP_FOUND AND NOT VT_FOUND)
-    message(FATAL_ERROR "Found neither ScoreP or VampirTrace backend!")
-endif()
+install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)

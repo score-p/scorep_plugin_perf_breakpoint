@@ -36,8 +36,6 @@ To compile this plugin, you need:
 
         make
 
-    The resulting files will be named `libbp.so` (Score-P) and `libbpVt.so` (VampirTrace).
-
 4. Copy it to a location listed in `LD_LIBRARY_PATH` or add current path to `LD_LIBRARY_PATH` with
 
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`
@@ -45,10 +43,10 @@ To compile this plugin, you need:
 ##Usage
 
 To add a kernel event counter to your trace, you have to specify the environment variable
-`SCOREP_METRIC_PLUGINS`, resp. `VT_PLUGIN_CNTR_METRIC`.
+`SCOREP_METRIC_PERFBREAKPOINT_PLUGIN`, resp. `VT_PLUGIN_CNTR_METRIC`.
 
-`SCOREP_METRIC_PLUGINS`/`VT_PLUGIN_CNTR_METRIC` specifies the software events that shall be recorded
-when tracing an application. You can add the following metrics:
+`SCOREP_METRIC_PERFBREAKPOINT_PLUGIN`/`VT_PLUGIN_CNTR_METRIC` specifies the software events that
+shall be recorded when tracing an application. You can add the following metrics:
 
 * `r_<NAME>`
 
@@ -63,12 +61,12 @@ write, `rw` to read and write, and `x` to execute.
 
 E.g. for the ScoreP plugin:
 
-    export SCOREP_METRIC_PLUGINS="bp"
-    export SCOREP_BP_METRICS="x_Gomp_Init"
+    export SCOREP_METRIC_PLUGINS="perfbreakpoint_plugin"
+    export SCOREP_PERFBREAKPOINT_PLUGIN="x_Gomp_Init"
 
 or for the VampirTrace plugin:
 
-    export VT_PLUGIN_CNTR_METRICS="bpVT_x_Gomp_Init"
+    export VT_PLUGIN_CNTR_METRICS="perfbreakpoint_plugin_x_Gomp_Init"
 
 ###If anything fails
 
