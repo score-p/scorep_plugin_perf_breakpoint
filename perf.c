@@ -261,7 +261,7 @@ SCOREP_Metric_Plugin_MetricProperties * get_event_info(char * event_name)
     return_values[0].name        = strdup(event_name);
     return_values[0].unit        = NULL;
     return_values[0].description = NULL;
-    return_values[0].mode        = SCOREP_METRIC_MODE_ABSOLUTE_LAST;
+    return_values[0].mode        = SCOREP_METRIC_MODE_ACCUMULATED_START;
     return_values[0].value_type  = SCOREP_METRIC_VALUE_UINT64;
     return_values[0].base        = SCOREP_METRIC_BASE_DECIMAL;
     return_values[0].exponent    = 0;
