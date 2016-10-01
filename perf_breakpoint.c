@@ -28,11 +28,11 @@
 #define PACKAGE 1
 #define PACKAGE_VERSION 1
 
-#ifdef VT
-#include <vampirtrace/vt_plugin_cntr.h>
-#else
 #ifdef SCOREP
 #include <scorep/SCOREP_MetricPlugins.h>
+#else
+#ifdef VT
+#include <vampirtrace/vt_plugin_cntr.h>
 #else
 #error "You need Score-P or VampirTrace to compile this plugin"
 #endif /* SCOREP*/
@@ -92,10 +92,10 @@ void build_perf_attr(struct perf_event_attr * attr, const char * complex_name) {
     switch(action[0]) {
     case 'r':
         switch(action[1]) {
-        case 'w':
-            attr->bp_type = HW_BREAKPOINT_RW; break;
-        default:
-            attr->bp_type = HW_BREAKPOINT_R; break;
+            case 'w':
+                attr->bp_type = HW_BREAKPOINT_RW; break;
+            default:
+                attr->bp_type = HW_BREAKPOINT_R; break;
         }
     case 'w':
         attr->bp_type = HW_BREAKPOINT_W; break;
@@ -113,18 +113,12 @@ void build_perf_attr(struct perf_event_attr * attr, const char * complex_name) {
         attr->type = PERF_TYPE_BREAKPOINT;
         attr->bp_addr = (uint64_t)address;
         attr->bp_len = HW_BREAKPOINT_LEN_8;
-        // printf("found in dlsym %s %x\n",name,attr->bp_addr);
-
-        //if type is known:
-        //           sizeof(type), HW_BREAKPOINT_LEN_8;
     }
     else {
-// when name found via dlsym or bfd:
-
         /* try to find variable via bfd */
         unsigned int storage_needed, number;
         bfd *bfd_variable;
-    bfd_init(); //Initialize Magic
+        bfd_init(); //Initialize Magic
         bfd_variable = bfd_openr("/proc/self/exe",NULL);
         bfd_get_arch_size(bfd_variable);
         bfd_find_target(name,bfd_variable);
@@ -138,7 +132,6 @@ void build_perf_attr(struct perf_event_attr * attr, const char * complex_name) {
                 attr->type = PERF_TYPE_BREAKPOINT;
                 attr->bp_addr = (uint64_t)bfd_asymbol_base(table[i])+table[i]->value;
                 attr->bp_len = HW_BREAKPOINT_LEN_8;
-               // printf("found in tab %s %x\n",name,attr->bp_addr);
             }
         }
         free(table);
@@ -155,7 +148,6 @@ void build_perf_attr(struct perf_event_attr * attr, const char * complex_name) {
                 attr->type = PERF_TYPE_BREAKPOINT;
                 attr->bp_addr = (uint64_t)bfd_asymbol_base(table[i])+table[i]->value;
                 attr->bp_len = HW_BREAKPOINT_LEN_8;
-               // printf("found in dyn %s %x\n",name,attr->bp_addr);
             }
         }
         bfd_close(bfd_variable);
@@ -171,13 +163,17 @@ int32_t add_counter(char * event_name) {
     build_perf_attr(&attr, event_name);
     /* wrong metric */
     if (attr.type==PERF_TYPE_MAX) {
-        fprintf(stderr, "PERF metric not recognized: %s", event_name );
+        fprintf(stderr, "Perf Breakpoint Plugin: symbol not recognized: %s", event_name );
         return -1;
     }
+    /* default watch for 8 byte, reduce if 8 byte fails */
     while ( (fd <= 0 ) && ( attr.bp_len > 0 ) ){
-      fd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, 0);
-      attr.bp_len = attr.bp_len >> 1;
+        /* try */
+        fd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, 0);
+        /* reduce */
+        attr.bp_len = attr.bp_len >> 1;
     }
+    /* all failed? */
     if (fd<=0) {
         fprintf(stderr, "Unable to open counter \"%s\". Aborting.\n",event_name);
         return -1;
@@ -205,13 +201,13 @@ vt_plugin_cntr_metric_info * get_event_info(char * event_name) {
     build_perf_attr(&attr, event_name);
     /* wrong metric */
     if (attr.type==PERF_TYPE_MAX) {
-        fprintf(stderr, "PERF metric not recognized: %s", event_name );
+        fprintf(stderr, "Perf Breakpoint Plugin: symbol not recognized: %s", event_name );
         return NULL;
     }
     return_values=
         malloc(2 * sizeof(vt_plugin_cntr_metric_info) );
     if (return_values==NULL) {
-        fprintf(stderr, "VampirTrace Perf Plugin: failed to allocate memory for passing information to VT.\n");
+        fprintf(stderr, "Perf Breakpoint Plugin: failed to allocate memory for passing information to VT.\n");
         return NULL;
     }
     return_values[0].name=strdup(event_name);
@@ -249,13 +245,13 @@ SCOREP_Metric_Plugin_MetricProperties * get_event_info(char * event_name)
     build_perf_attr(&attr, event_name);
     /* wrong metric */
     if (attr.type==PERF_TYPE_MAX) {
-        fprintf(stderr, "PERF metric not recognized: %s", event_name );
+        fprintf(stderr, "Perf Breakpoint Plugin: symbol not recognized: %s", event_name );
         return NULL;
     }
     return_values=
         malloc(2 * sizeof(SCOREP_Metric_Plugin_MetricProperties) );
     if (return_values==NULL) {
-        fprintf(stderr, "Score-P Perf Plugin: failed to allocate memory for passing information to Score-P.\n");
+        fprintf(stderr, "Perf Breakpoint Plugin: failed to allocate memory for passing information to Score-P.\n");
         return NULL;
     }
     return_values[0].name        = strdup(event_name);
@@ -269,11 +265,6 @@ SCOREP_Metric_Plugin_MetricProperties * get_event_info(char * event_name)
     return return_values;
 }
 
-bool get_optional_value( int32_t   id,
-                         uint64_t* value ) {
-    *value=get_value(id);
-    return true;
-}
 
 /**
  * This function get called to give some informations about the plugin to scorep
@@ -287,13 +278,12 @@ SCOREP_METRIC_PLUGIN_ENTRY( perfbreakpoint_plugin )
     /* Set up the structure */
     info.plugin_version               = SCOREP_METRIC_PLUGIN_VERSION;
     info.run_per                      = SCOREP_METRIC_PER_THREAD;
-    info.sync                         = SCOREP_METRIC_SYNC;
+    info.sync                         = SCOREP_METRIC_STRICTLY_SYNC;
     info.initialize                   = init;
     info.finalize                     = fini;
     info.get_event_info               = get_event_info;
     info.add_counter                  = add_counter;
     info.get_current_value            = get_value;
-    info.get_optional_value           = get_optional_value;
 
     return info;
 }

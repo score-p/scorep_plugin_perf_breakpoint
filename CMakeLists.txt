@@ -5,7 +5,7 @@ option(BACKEND_SCOREP "Build plugin using scorep(ON) or vampirtrace(OFF)" ON)
 
 set(SCOREP_FOUND false)
 
-set(PLUGIN_SOURCE perf.c)
+set(PLUGIN_SOURCE perf_breakpoint.c)
 
 
 if(BACKEND_SCOREP)
