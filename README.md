@@ -1,10 +1,10 @@
-#Perf Breakpoint Plugin
+# Perf Breakpoint Plugin
 
 This README topics the installation and usage of the Score-P (and VampirTrace) perf plugin counter.
 
-##Compilation and Installation
+## Compilation and Installation
 
-###Prerequisites
+### Prerequisites
 
 To compile this plugin, you need:
 
@@ -16,7 +16,7 @@ To compile this plugin, you need:
 
 * a recent Linux kernel (`2.6.32+`) with activated tracing and the kernel headers
 
-###Building
+### Building
 
 1. Create a build directory
 
@@ -40,7 +40,7 @@ To compile this plugin, you need:
 
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`
 
-##Usage
+## Usage
 
 To add a kernel event counter to your trace, you have to specify the environment variable
 `SCOREP_METRIC_PERFBREAKPOINT_PLUGIN`, resp. `VT_PLUGIN_CNTR_METRIC`.
@@ -68,12 +68,12 @@ or for the VampirTrace plugin:
 
     export VT_PLUGIN_CNTR_METRICS="perfbreakpoint_plugin_x_Gomp_Init"
 
-###If anything fails
+### If anything fails
 
 1. Check whether the plugin library can be loaded from the `LD_LIBRARY_PATH`.
 
 2. Write a mail to the author.
 
-##Author
+## Author
 
 Robert Schoene (robert.schoene at tu-dresden dot de)
